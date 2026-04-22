@@ -1,0 +1,10 @@
+title = "gitleaks config"
+
+[allowlist]
+description = "Allowlist template placeholders in docker-compose.yml"
+paths = [
+    '''docker-compose\.yml''',
+]
+regexes = [
+    '''\{\{[A-Z_]+\}\}''',
+]
