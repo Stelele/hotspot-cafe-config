@@ -4,10 +4,15 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate:
     name: Validate
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -24,27 +29,54 @@ jobs:
     name: Render Compose File
     runs-on: ubuntu-latest
     needs: validate
+    timeout-minutes: 5
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Validate required secrets
+        run: |
+          missing=()
+          for secret in RADIUS_DB_ROOT_PASSWORD RADIUS_DB_PASSWORD DROPLET_IP WG_EASY_PASSWORD_HASH; do
+            if [ -z "${!secret}" ]; then
+              missing+=("$secret")
+            fi
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "Missing required secrets: ${missing[*]}"
+            exit 1
+          fi
+        env:
+          RADIUS_DB_ROOT_PASSWORD: ${{ secrets.RADIUS_DB_ROOT_PASSWORD }}
+          RADIUS_DB_PASSWORD: ${{ secrets.RADIUS_DB_PASSWORD }}
+          DROPLET_IP: ${{ secrets.DROPLET_IP }}
+          WG_EASY_PASSWORD_HASH: ${{ secrets.WG_EASY_PASSWORD_HASH }}
+
       - name: Render docker-compose.yml
         run: |
-          python3 -c "
-          import re, os
+          python3 << 'PYEOF'
+          import os, sys
+
           with open('docker-compose.yml', 'r') as f:
               content = f.read()
+
           replacements = {
               '{{RADIUS_DB_ROOT_PASSWORD}}': os.environ['RADIUS_DB_ROOT_PASSWORD'],
               '{{RADIUS_DB_PASSWORD}}': os.environ['RADIUS_DB_PASSWORD'],
               '{{DROPLET_IP}}': os.environ['DROPLET_IP'],
               '{{WG_EASY_PASSWORD_HASH}}': os.environ['WG_EASY_PASSWORD_HASH'],
           }
+
           for placeholder, value in replacements.items():
+              if not value:
+                  print(f"ERROR: Secret for {placeholder} is empty")
+                  sys.exit(1)
               content = content.replace(placeholder, value)
+
           with open('docker-compose.rendered.yml', 'w') as f:
               f.write(content)
-          "
+          print("Rendered docker-compose.yml successfully")
+          PYEOF
         env:
           RADIUS_DB_ROOT_PASSWORD: ${{ secrets.RADIUS_DB_ROOT_PASSWORD }}
           RADIUS_DB_PASSWORD: ${{ secrets.RADIUS_DB_PASSWORD }}
@@ -62,6 +94,7 @@ jobs:
     name: Deploy to Droplet
     runs-on: ubuntu-latest
     needs: render
+    timeout-minutes: 15
     steps:
       - name: Download rendered compose file
         uses: actions/download-artifact@v4
@@ -69,11 +102,12 @@ jobs:
           name: deploy-artifact
 
       - name: Setup SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.DO_SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H ${{ secrets.DO_HOST }} >> ~/.ssh/known_hosts
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DO_SSH_KEY }}
+
+      - name: Add droplet to known hosts
+        run: ssh-keyscan -T 5 -H ${{ secrets.DO_HOST }} >> ~/.ssh/known_hosts
 
       - name: Backup current compose on droplet
         run: |
@@ -94,16 +128,30 @@ jobs:
     name: Smoke Test
     runs-on: ubuntu-latest
     needs: deploy
+    timeout-minutes: 10
     steps:
       - name: Setup SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.DO_SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H ${{ secrets.DO_HOST }} >> ~/.ssh/known_hosts
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DO_SSH_KEY }}
+
+      - name: Add droplet to known hosts
+        run: ssh-keyscan -T 5 -H ${{ secrets.DO_HOST }} >> ~/.ssh/known_hosts
 
       - name: Wait for services to start
-        run: sleep 15
+        run: |
+          echo "Waiting for services to become healthy..."
+          for i in $(seq 30); do
+            if ssh ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} "curl -sf http://127.0.0.1:80 > /dev/null 2>&1"; then
+              echo "daloRADIUS is responding after $((i * 2)) seconds"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "Services failed to start within 60 seconds"
+              exit 1
+            fi
+            sleep 2
+          done
 
       - name: Run smoke tests
         run: |
@@ -112,18 +160,14 @@ jobs:
 
             echo "Checking container health..."
             cd ~/cafe-radius
-            docker compose ps --format json | python3 -c "
-            import sys, json
-            containers = []
-            for line in sys.stdin:
-                if line.strip():
-                    containers.append(json.loads(line))
-            for c in containers:
-                if 'running' not in c.get('State', '').lower():
-                    print(f'  FAIL: {c[\"Name\"]} is {c[\"State\"]}')
-                    sys.exit(1)
-                print(f'  OK: {c[\"Name\"]} is running')
-            "
+            docker compose ps --format '{{.State}}' | while read -r state; do
+              if echo "$state" | grep -qi "running"; then
+                echo "  OK: Container is running ($state)"
+              else
+                echo "  FAIL: Container state: $state"
+                exit 1
+              fi
+            done
 
             echo "Testing daloRADIUS HTTP (port 80)..."
             curl -sf http://127.0.0.1:80 > /dev/null && echo "  OK" || { echo "  FAIL"; exit 1; }
@@ -137,15 +181,17 @@ jobs:
   rollback:
     name: Rollback
     runs-on: ubuntu-latest
-    needs: smoke-test
-    if: failure()
+    needs: [deploy, smoke-test]
+    if: always() && (needs.deploy.result == 'failure' || needs.smoke-test.result == 'failure')
+    timeout-minutes: 10
     steps:
       - name: Setup SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.DO_SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H ${{ secrets.DO_HOST }} >> ~/.ssh/known_hosts
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DO_SSH_KEY }}
+
+      - name: Add droplet to known hosts
+        run: ssh-keyscan -T 5 -H ${{ secrets.DO_HOST }} >> ~/.ssh/known_hosts
 
       - name: Restore previous compose and restart
         run: |
@@ -157,8 +203,8 @@ jobs:
               docker compose up -d
               echo "Rollback completed successfully."
             else
-              echo "No backup found, skipping rollback."
-              exit 1
+              echo "::warning::No backup found on droplet. Cannot rollback."
+              exit 0
             fi
           EOF
 
@@ -167,6 +213,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [deploy, smoke-test, rollback]
     if: always()
+    timeout-minutes: 5
     steps:
       - name: Report workflow status
         run: |
@@ -178,6 +225,8 @@ jobs:
             echo "::notice::Deployment succeeded. All services are running."
           elif [ "$ROLLBACK_STATUS" = "success" ]; then
             echo "::error::Deployment failed. Smoke tests failed. Rollback completed."
+          elif [ "$DEPLOY_STATUS" = "failure" ]; then
+            echo "::error::Deployment failed at deploy stage. No rollback needed."
           else
-            echo "::error::Deployment failed. Smoke tests failed. Rollback also failed."
+            echo "::error::Deployment failed. Smoke tests failed. Rollback also failed or was skipped."
           fi
