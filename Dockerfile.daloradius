@@ -23,7 +23,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     cron \
     net-tools \
+    php-pear \
     && rm -rf /var/lib/apt/lists/*
+
+RUN pear install DB
 
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) \
