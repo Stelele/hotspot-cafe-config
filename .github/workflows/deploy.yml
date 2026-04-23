@@ -125,6 +125,12 @@ jobs:
           scp docker-compose.rendered.yml \
             ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:~/cafe-radius/docker-compose.yml
 
+      - name: Sync init scripts to droplet
+        run: |
+          ssh ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} "mkdir -p ~/cafe-radius/init"
+          scp init/*.sql \
+            ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:~/cafe-radius/init/
+
       - name: Restart containers
         run: |
           ssh ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} \
