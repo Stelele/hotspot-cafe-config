@@ -60,12 +60,18 @@ echo "Starting daloRADIUS..."
 # Configure daloRADIUS
 init_daloradius
 
-# Wait for MySQL to be ready
+# Wait for MySQL to be ready (with timeout)
 echo -n "Waiting for mysql ($MYSQL_HOST)..."
-while ! mysqladmin ping -h"$MYSQL_HOST" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --silent 2>/dev/null; do
-    sleep 5
+for i in $(seq 30); do
+    if mysqladmin ping -h"$MYSQL_HOST" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --silent 2>/dev/null; then
+        echo "ok"
+        break
+    fi
+    if [ $i -eq 30 ]; then
+        echo "timeout, proceeding anyway..."
+    fi
+    sleep 2
 done
-echo "ok"
 
 # Start Apache2 in the foreground
-/usr/sbin/apachectl -DFOREGROUND -k start
+exec /usr/sbin/apachectl -DFOREGROUND -k start
