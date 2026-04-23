@@ -21,7 +21,7 @@ services:
     depends_on:
       - radius-db
     ports:
-      - "127.0.0.1:8080:80"
+      - "127.0.0.1:8082:80"
       - "1812:1812/udp"
       - "1813:1813/udp"
     environment:
