@@ -148,7 +148,7 @@ jobs:
         run: |
           echo "Waiting for services to become healthy..."
           for i in $(seq 30); do
-            if ssh ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} "curl -sf http://127.0.0.1:80 > /dev/null 2>&1"; then
+            if ssh ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} "curl -sf http://127.0.0.1:8080 > /dev/null 2>&1"; then
               echo "daloRADIUS is responding after $((i * 2)) seconds"
               break
             fi
@@ -175,8 +175,8 @@ jobs:
               fi
             done
 
-            echo "Testing daloRADIUS HTTP (port 80)..."
-            curl -sf http://127.0.0.1:80 > /dev/null && echo "  OK" || { echo "  FAIL"; exit 1; }
+            echo "Testing daloRADIUS HTTP (port 8080)..."
+            curl -sf http://127.0.0.1:8080 > /dev/null && echo "  OK" || { echo "  FAIL"; exit 1; }
 
             echo "Testing wg-easy GUI HTTP (port 51821)..."
             curl -sf http://127.0.0.1:51821 > /dev/null && echo "  OK" || { echo "  FAIL"; exit 1; }
