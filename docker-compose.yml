@@ -14,7 +14,7 @@ services:
       - radius-db-data:/var/lib/mysql
 
   daloradius:
-    image: lirantal/daloradius:latest
+    image: fflo/daloradius:latest
     container_name: daloradius
     restart: unless-stopped
     depends_on:
