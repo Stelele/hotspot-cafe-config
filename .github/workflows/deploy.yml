@@ -85,11 +85,13 @@ jobs:
           DROPLET_IP: ${{ secrets.DROPLET_IP }}
           WG_EASY_PASSWORD_HASH: ${{ secrets.WG_EASY_PASSWORD_HASH }}
 
-      - name: Upload rendered compose file
+      - name: Upload deploy artifacts
         uses: actions/upload-artifact@v4
         with:
           name: deploy-artifact
-          path: docker-compose.rendered.yml
+          path: |
+            docker-compose.rendered.yml
+            init/
           retention-days: 1
 
   deploy:
