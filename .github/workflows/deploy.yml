@@ -111,10 +111,14 @@ jobs:
       - name: Add droplet to known hosts
         run: ssh-keyscan -T 5 -H ${{ secrets.DO_HOST }} >> ~/.ssh/known_hosts
 
+      - name: Ensure deploy directory exists on droplet
+        run: |
+          ssh ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} "mkdir -p ~/cafe-radius"
+
       - name: Backup current compose on droplet
         run: |
           ssh ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} \
-            "cd ~/cafe-radius && cp docker-compose.yml docker-compose.yml.bak 2>/dev/null || true"
+            "cd ~/cafe-radius && [ -f docker-compose.yml ] && cp docker-compose.yml docker-compose.yml.bak || true"
 
       - name: SCP rendered compose to droplet
         run: |
