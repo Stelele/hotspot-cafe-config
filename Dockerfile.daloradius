@@ -37,6 +37,10 @@ RUN a2enmod rewrite
 # Clone latest daloradius from GitHub
 RUN git clone --depth 1 https://github.com/lirantal/daloradius.git /var/www/daloradius
 
+# Fix PHP 8 deprecation warnings: optional params must come after required params
+RUN sed -i 's/function getNextBillingDate(\$planRecurringBillingSchedule = "Fixed", \$planRecurringPeriod, \$billDates = null)/function getNextBillingDate(\$planRecurringPeriod, \$planRecurringBillingSchedule = "Fixed", \$billDates = null)/g' /var/www/daloradius/app/operators/include/management/pages_common.php
+RUN sed -i 's/function getPrevBillingDate(\$planRecurringBillingSchedule = "Fixed", \$planRecurringPeriod, \$billDates = null)/function getPrevBillingDate(\$planRecurringPeriod, \$planRecurringBillingSchedule = "Fixed", \$billDates = null)/g' /var/www/daloradius/app/operators/include/management/pages_common.php
+
 # Create Apache site configs
 RUN cat > /etc/apache2/sites-available/operators.conf << 'APACHEOF'
 <VirtualHost *:80>
@@ -60,7 +64,8 @@ APACHEOF
 
 RUN a2dissite 000-default.conf 2>/dev/null || true \
     && a2ensite operators.conf users.conf \
-    && sed -i 's/Listen 80/Listen 80\nListen 8000/' /etc/apache2/ports.conf
+    && sed -i 's/Listen 80/Listen 80\nListen 8000/' /etc/apache2/ports.conf \
+    && echo "ServerName localhost" >> /etc/apache2/apache2.conf
 
 # Create data directory for init lock files
 RUN mkdir -p /data \
