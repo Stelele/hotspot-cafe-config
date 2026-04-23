@@ -15,7 +15,7 @@ services:
       - ./init:/docker-entrypoint-initdb.d:ro
 
   daloradius:
-    image: fflo/daloradius:latest
+    image: stelele/daloradius:latest
     container_name: daloradius
     restart: unless-stopped
     depends_on:

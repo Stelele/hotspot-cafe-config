@@ -1,0 +1,9 @@
+.git/
+.github/
+docs/
+.opencode/
+*.md
+LICENSE
+*.bak
+docker-compose.rendered.yml
+.env

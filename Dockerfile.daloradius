@@ -1,0 +1,76 @@
+FROM php:8.2-apache
+
+LABEL maintainer="stelele" \
+      description="daloRADIUS - Latest build from GitHub master" \
+      source="https://github.com/lirantal/daloradius"
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    TZ=Africa/Harare
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    freeradius-utils \
+    tzdata \
+    git \
+    libzip-dev \
+    libpng-dev \
+    libjpeg62-turbo-dev \
+    libfreetype6-dev \
+    libonig-dev \
+    libcurl4-openssl-dev \
+    default-mysql-client \
+    unzip \
+    wget \
+    cron \
+    net-tools \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j$(nproc) \
+        pdo pdo_mysql mysqli gd mbstring curl zip
+
+RUN a2enmod rewrite
+
+# Clone latest daloradius from GitHub
+RUN git clone --depth 1 https://github.com/lirantal/daloradius.git /var/www/daloradius
+
+# Create Apache site configs
+RUN cat > /etc/apache2/sites-available/operators.conf << 'APACHEOF'
+<VirtualHost *:80>
+    DocumentRoot /var/www/daloradius/app/operators
+    <Directory /var/www/daloradius/app/operators>
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
+APACHEOF
+
+RUN cat > /etc/apache2/sites-available/users.conf << 'APACHEOF'
+<VirtualHost *:8000>
+    DocumentRoot /var/www/daloradius/app/users
+    <Directory /var/www/daloradius/app/users>
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
+APACHEOF
+
+RUN a2dissite 000-default.conf 2>/dev/null || true \
+    && a2ensite operators.conf users.conf \
+    && sed -i 's/Listen 80/Listen 80\nListen 8000/' /etc/apache2/ports.conf
+
+# Create data directory for init lock files
+RUN mkdir -p /data \
+    && chown -R www-data:www-data /var/www/daloradius \
+    && touch /tmp/daloradius.log \
+    && chown www-data:www-data /tmp/daloradius.log \
+    && mkdir -p /var/log/apache2/daloradius \
+    && chown -R www-data:www-data /var/log/apache2/daloradius
+
+# Copy init script
+COPY init.sh /var/www/daloradius/init.sh
+RUN chmod +x /var/www/daloradius/init.sh
+
+EXPOSE 80 8000
+
+CMD ["/bin/bash", "/var/www/daloradius/init.sh"]
