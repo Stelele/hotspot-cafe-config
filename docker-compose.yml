@@ -12,6 +12,7 @@ services:
       - MYSQL_PASSWORD={{RADIUS_DB_PASSWORD}}
     volumes:
       - radius-db-data:/var/lib/mysql
+      - ./init:/docker-entrypoint-initdb.d:ro
 
   daloradius:
     image: fflo/daloradius:latest
