@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   radius-db:
     image: mariadb:10.5
@@ -36,7 +34,6 @@ services:
       - TZ=Africa/Harare
     volumes:
       - daloradius-logs:/var/log/freeradius
-      - ./freeradius:/etc/freeradius/3.0/templates:ro
 
   wg-easy:
     image: ghcr.io/wg-easy/wg-easy
