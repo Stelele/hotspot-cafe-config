@@ -62,6 +62,13 @@ function init_freeradius {
     cp /etc/freeradius/3.0/templates/sql.conf.template /etc/freeradius/3.0/mods-available/sql
     cp /etc/freeradius/3.0/templates/clients.conf.template /etc/freeradius/3.0/clients.conf
 
+    # Replace placeholders with actual values
+    sed -i "s/DB_HOST_PLACEHOLDER/$MYSQL_HOST/" /etc/freeradius/3.0/mods-available/sql
+    sed -i "s/DB_PORT_PLACEHOLDER/$MYSQL_PORT/" /etc/freeradius/3.0/mods-available/sql
+    sed -i "s/DB_USER_PLACEHOLDER/$MYSQL_USER/" /etc/freeradius/3.0/mods-available/sql
+    sed -i "s/DB_PASS_PLACEHOLDER/$MYSQL_PASSWORD/" /etc/freeradius/3.0/mods-available/sql
+    sed -i "s/DB_NAME_PLACEHOLDER/$MYSQL_DATABASE/" /etc/freeradius/3.0/mods-available/sql
+
     # Set ownership for FreeRADIUS config files
     chown freerad:freerad /etc/freeradius/3.0/mods-available/sql
     chown freerad:freerad /etc/freeradius/3.0/clients.conf
@@ -69,13 +76,11 @@ function init_freeradius {
     # Enable SQL module by creating symlink
     ln -sf /etc/freeradius/3.0/mods-available/sql /etc/freeradius/3.0/mods-enabled/sql
 
+    # Enable SQL module in default site config (uncomment -sql -> sql)
+    sed -i 's/^\t-sql$/\tsql/' /etc/freeradius/3.0/sites-enabled/default
+
     # Load FreeRADIUS SQL schema into database if tables don't exist
     echo -n "Checking FreeRADIUS database schema..."
-    if ! mysqladmin ping -h"$MYSQL_HOST" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --silent 2>/dev/null; then
-        echo "database not reachable"
-        return 1
-    fi
-
     TABLE_EXISTS=$(mysql -h"$MYSQL_HOST" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$MYSQL_DATABASE' AND table_name='radcheck';" 2>/dev/null)
 
     if [ "$TABLE_EXISTS" != "1" ]; then
@@ -98,9 +103,6 @@ echo "Starting daloRADIUS..."
 # Configure daloRADIUS
 init_daloradius
 
-# Configure and start FreeRADIUS
-init_freeradius
-
 # Wait for MySQL to be ready (with timeout)
 echo -n "Waiting for mysql ($MYSQL_HOST)..."
 for i in $(seq 30); do
@@ -114,15 +116,21 @@ for i in $(seq 30); do
     sleep 2
 done
 
-# Start FreeRADIUS daemon in background
+# Configure and start FreeRADIUS
+init_freeradius
+
+# Kill any existing FreeRADIUS processes
+killall freeradius 2>/dev/null
+sleep 1
+
+# Start FreeRADIUS daemon
 echo "Starting FreeRADIUS..."
-freeradius -f -l /var/log/freeradius/radius.log &
-FREERADIUS_PID=$!
+freeradius -l /var/log/freeradius/radius.log
 sleep 2
 
 # Verify FreeRADIUS started
-if kill -0 $FREERADIUS_PID 2>/dev/null; then
-    echo "FreeRADIUS started successfully (PID: $FREERADIUS_PID)"
+if pgrep -x freeradius > /dev/null; then
+    echo "FreeRADIUS started successfully"
 else
     echo "WARNING: FreeRADIUS failed to start"
 fi
