@@ -68,6 +68,7 @@ function init_freeradius {
     sed -i "s/DB_USER_PLACEHOLDER/$MYSQL_USER/" /etc/freeradius/3.0/mods-available/sql
     sed -i "s/DB_PASS_PLACEHOLDER/$MYSQL_PASSWORD/" /etc/freeradius/3.0/mods-available/sql
     sed -i "s/DB_NAME_PLACEHOLDER/$MYSQL_DATABASE/" /etc/freeradius/3.0/mods-available/sql
+    sed -i "s/{{RADIUS_SECRET}}/$RADIUS_SECRET/" /etc/freeradius/3.0/clients.conf
 
     # Set ownership for FreeRADIUS config files
     chown freerad:freerad /etc/freeradius/3.0/mods-available/sql
