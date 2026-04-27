@@ -1,0 +1,31 @@
+sql {
+    driver = "rlm_sql_mysql"
+    dialect = "mysql"
+
+    server = "${ENV:MYSQL_HOST}"
+    port = ${ENV:MYSQL_PORT:-3306}
+    login = "${ENV:MYSQL_USER}"
+    password = "${ENV:MYSQL_PASSWORD}"
+    radius_db = "${ENV:MYSQL_DATABASE}"
+
+    read_clients = yes
+    client_table = "nas"
+
+    num_sql_socks = 5
+
+    query_file = "sql/mysql/queries.conf"
+    group_membership_query_file = "sql/mysql/group_membership_check.sql"
+    nas_query_file = "sql/mysql/nas.sql"
+    authorize_check_query_file = "sql/mysql/authorize_check.sql"
+    authorize_reply_query_file = "sql/mysql/authorize_reply.sql"
+    accounting_onoff_query_file = "sql/mysql/accounting_onoff.sql"
+    accounting_update_query_file = "sql/mysql/accounting_update.sql"
+    accounting_update_query_alt_file = "sql/mysql/accounting_update_alt.sql"
+    accounting_start_query_file = "sql/mysql/accounting_start.sql"
+    accounting_start_query_alt_file = "sql/mysql/accounting_start_alt.sql"
+    accounting_stop_query_file = "sql/mysql/accounting_stop.sql"
+    accounting_stop_query_alt_file = "sql/mysql/accounting_stop_alt.sql"
+    delete_auth_query_file = "sql/mysql/delete_auth.sql"
+
+    delete_stale_sessions = yes
+}
