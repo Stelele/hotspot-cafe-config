@@ -100,13 +100,13 @@ jobs:
     needs: [render, validate]
     timeout-minutes: 15
     steps:
+      - name: Checkout build context
+        uses: actions/checkout@v4
+
       - name: Download rendered compose file
         uses: actions/download-artifact@v4
         with:
           name: deploy-artifact
-
-      - name: Checkout build context
-        uses: actions/checkout@v4
 
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.0
