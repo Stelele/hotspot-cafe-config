@@ -55,10 +55,51 @@ CONFEOF
     echo "daloRADIUS initialization completed."
 }
 
+function init_freeradius {
+    echo "Initializing FreeRADIUS..."
+
+    # Copy config templates to active config location
+    cp /etc/freeradius/3.0/templates/sql.conf.template /etc/freeradius/3.0/mods-available/sql
+    cp /etc/freeradius/3.0/templates/clients.conf.template /etc/freeradius/3.0/clients.conf
+
+    # Set ownership for FreeRADIUS config files
+    chown freerad:freerad /etc/freeradius/3.0/mods-available/sql
+    chown freerad:freerad /etc/freeradius/3.0/clients.conf
+
+    # Enable SQL module by creating symlink
+    ln -sf /etc/freeradius/3.0/mods-available/sql /etc/freeradius/3.0/mods-enabled/sql
+
+    # Load FreeRADIUS SQL schema into database if tables don't exist
+    echo -n "Checking FreeRADIUS database schema..."
+    if ! mysqladmin ping -h"$MYSQL_HOST" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --silent 2>/dev/null; then
+        echo "database not reachable"
+        return 1
+    fi
+
+    TABLE_EXISTS=$(mysql -h"$MYSQL_HOST" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='$MYSQL_DATABASE' AND table_name='radcheck';" 2>/dev/null)
+
+    if [ "$TABLE_EXISTS" != "1" ]; then
+        echo "loading schema..."
+        mysql -h"$MYSQL_HOST" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" < /var/www/daloradius/contrib/db/fr3-mariadb-freeradius.sql 2>/dev/null
+        mysql -h"$MYSQL_HOST" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" < /var/www/daloradius/contrib/db/mariadb-daloradius.sql 2>/dev/null
+        echo "schema loaded successfully"
+    else
+        echo "schema already exists"
+    fi
+
+    # Disable TLS in SQL module (matching official guide approach)
+    sed -Ei '/^\[\t\s#\]*tls\s+\{/, /\[\t\s#\]*\}/ s/^/#/' /etc/freeradius/3.0/mods-available/sql
+
+    echo "FreeRADIUS initialization completed."
+}
+
 echo "Starting daloRADIUS..."
 
 # Configure daloRADIUS
 init_daloradius
+
+# Configure and start FreeRADIUS
+init_freeradius
 
 # Wait for MySQL to be ready (with timeout)
 echo -n "Waiting for mysql ($MYSQL_HOST)..."
@@ -72,6 +113,19 @@ for i in $(seq 30); do
     fi
     sleep 2
 done
+
+# Start FreeRADIUS daemon in background
+echo "Starting FreeRADIUS..."
+freeradius -f -l /var/log/freeradius/radius.log &
+FREERADIUS_PID=$!
+sleep 2
+
+# Verify FreeRADIUS started
+if kill -0 $FREERADIUS_PID 2>/dev/null; then
+    echo "FreeRADIUS started successfully (PID: $FREERADIUS_PID)"
+else
+    echo "WARNING: FreeRADIUS failed to start"
+fi
 
 # Start Apache2 in the foreground
 exec /usr/sbin/apachectl -DFOREGROUND -k start

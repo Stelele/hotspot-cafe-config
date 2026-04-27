@@ -15,7 +15,9 @@ services:
       - ./init:/docker-entrypoint-initdb.d:ro
 
   daloradius:
-    image: stelele/daloradius:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.daloradius
     container_name: daloradius
     restart: unless-stopped
     depends_on:
@@ -30,9 +32,11 @@ services:
       - MYSQL_DATABASE=radius
       - MYSQL_USER=radius
       - MYSQL_PASSWORD={{RADIUS_DB_PASSWORD}}
+      - RADIUS_SECRET={{RADIUS_SECRET}}
       - TZ=Africa/Harare
     volumes:
       - daloradius-logs:/var/log/freeradius
+      - ./freeradius:/etc/freeradius/3.0/templates:ro
 
   wg-easy:
     image: ghcr.io/wg-easy/wg-easy

@@ -9,6 +9,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
+    freeradius \
+    freeradius-mysql \
     freeradius-utils \
     tzdata \
     git \
@@ -78,10 +80,14 @@ RUN mkdir -p /data \
     && mkdir -p /var/log/apache2/daloradius \
     && chown -R www-data:www-data /var/log/apache2/daloradius
 
+# Copy FreeRADIUS config templates
+COPY freeradius/ /etc/freeradius/3.0/templates/
+RUN chown -R freerad:freerad /etc/freeradius/3.0/templates/
+
 # Copy init script
 COPY init.sh /var/www/daloradius/init.sh
 RUN chmod +x /var/www/daloradius/init.sh
 
-EXPOSE 80 8000
+EXPOSE 80 8000 1812/udp 1813/udp
 
 CMD ["/bin/bash", "/var/www/daloradius/init.sh"]
