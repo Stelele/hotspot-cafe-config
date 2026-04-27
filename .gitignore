@@ -1,3 +1,4 @@
 *.bak
 docker-compose.rendered.yml
 .env
+cudy-config

@@ -39,7 +39,7 @@ jobs:
       - name: Validate required secrets
         run: |
           missing=()
-          for secret in RADIUS_DB_ROOT_PASSWORD RADIUS_DB_PASSWORD DROPLET_IP WG_EASY_PASSWORD_HASH; do
+          for secret in RADIUS_DB_ROOT_PASSWORD RADIUS_DB_PASSWORD RADIUS_SECRET DROPLET_IP WG_EASY_PASSWORD_HASH; do
             if [ -z "${!secret}" ]; then
               missing+=("$secret")
             fi
@@ -51,6 +51,7 @@ jobs:
         env:
           RADIUS_DB_ROOT_PASSWORD: ${{ secrets.RADIUS_DB_ROOT_PASSWORD }}
           RADIUS_DB_PASSWORD: ${{ secrets.RADIUS_DB_PASSWORD }}
+          RADIUS_SECRET: ${{ secrets.RADIUS_SECRET }}
           DROPLET_IP: ${{ secrets.DROPLET_IP }}
           WG_EASY_PASSWORD_HASH: ${{ secrets.WG_EASY_PASSWORD_HASH }}
 
@@ -65,6 +66,7 @@ jobs:
           replacements = {
               '{{RADIUS_DB_ROOT_PASSWORD}}': os.environ['RADIUS_DB_ROOT_PASSWORD'],
               '{{RADIUS_DB_PASSWORD}}': os.environ['RADIUS_DB_PASSWORD'],
+              '{{RADIUS_SECRET}}': os.environ['RADIUS_SECRET'],
               '{{DROPLET_IP}}': os.environ['DROPLET_IP'],
               '{{WG_EASY_PASSWORD_HASH}}': os.environ['WG_EASY_PASSWORD_HASH'],
           }
@@ -82,6 +84,7 @@ jobs:
         env:
           RADIUS_DB_ROOT_PASSWORD: ${{ secrets.RADIUS_DB_ROOT_PASSWORD }}
           RADIUS_DB_PASSWORD: ${{ secrets.RADIUS_DB_PASSWORD }}
+          RADIUS_SECRET: ${{ secrets.RADIUS_SECRET }}
           DROPLET_IP: ${{ secrets.DROPLET_IP }}
           WG_EASY_PASSWORD_HASH: ${{ secrets.WG_EASY_PASSWORD_HASH }}
 
@@ -138,13 +141,15 @@ jobs:
 
       - name: Sync build context to droplet
         run: |
-          ssh ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} "mkdir -p ~/cafe-radius/freeradius"
+          ssh ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }} "mkdir -p ~/cafe-radius/freeradius ~/cafe-radius/wg-easy"
           scp Dockerfile.daloradius \
             ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:~/cafe-radius/
           scp init.sh \
             ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:~/cafe-radius/
           scp freeradius/*.template \
             ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:~/cafe-radius/freeradius/
+          scp wg-easy/entrypoint.sh \
+            ${{ secrets.DO_USER }}@${{ secrets.DO_HOST }}:~/cafe-radius/wg-easy/
 
       - name: Restart containers
         run: |
