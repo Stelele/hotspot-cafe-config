@@ -4,7 +4,16 @@ session_start();
 $radius_server = '127.0.0.1';
 $radius_port = 1812;
 $radius_secret = getenv('RADIUS_SECRET') ?: 'v4.fgjBQEBTqpejX-Nfk';
-$cudy_gateway = '192.168.10.1';
+
+// Capture Cudy's UAM parameters
+$cudy_uamip = $_GET['uamip'] ?? '192.168.10.1';
+$cudy_mac = $_GET['mac'] ?? '';
+$cudy_url = $_GET['url'] ?? '';
+
+// If MAC not in URL, try to get from request headers or use placeholder
+if (!$cudy_mac) {
+    $cudy_mac = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+}
 
 $error = '';
 $username = '';
@@ -26,13 +35,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $output = shell_exec($radtest_cmd);
 
         if (strpos($output, 'Access-Accept') !== false) {
-            // Authentication successful - redirect to Cudy success URL
-            $mac = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '';
+            // Build success redirect URL for Cudy
             $success_url = sprintf(
-                'http://%s/cgi-bin/luci/admin/network/captive_portal/login_success?username=%s&mac=%s',
-                $cudy_gateway,
-                urlencode($username),
-                urlencode($mac)
+                'http://%s/cgi-bin/luci/admin/network/captive_portal/login_success?uamip=%s&mac=%s&username=%s',
+                $cudy_uamip,
+                urlencode($cudy_uamip),
+                urlencode($cudy_mac),
+                urlencode($username)
             );
             header('Location: ' . $success_url);
             exit;
