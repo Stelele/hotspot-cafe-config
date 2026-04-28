@@ -67,9 +67,19 @@ RUN cat > /etc/apache2/sites-available/users.conf << 'APACHEOF'
 </VirtualHost>
 APACHEOF
 
+RUN cat > /etc/apache2/sites-available/portal.conf << 'APACHEOF'
+<VirtualHost *:8001>
+    DocumentRoot /var/www/portal
+    <Directory /var/www/portal>
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
+APACHEOF
+
 RUN a2dissite 000-default.conf 2>/dev/null || true \
-    && a2ensite operators.conf users.conf \
-    && sed -i 's/Listen 80/Listen 80\nListen 8000/' /etc/apache2/ports.conf \
+    && a2ensite operators.conf users.conf portal.conf \
+    && sed -i 's/Listen 80/Listen 80\nListen 8000\nListen 8001/' /etc/apache2/ports.conf \
     && echo "ServerName localhost" >> /etc/apache2/apache2.conf
 
 # Create data directory for init lock files
@@ -80,6 +90,10 @@ RUN mkdir -p /data \
     && mkdir -p /var/log/apache2/daloradius \
     && chown -R www-data:www-data /var/log/apache2/daloradius
 
+# Copy captive portal files
+COPY portal/ /var/www/portal/
+RUN chown -R www-data:www-data /var/www/portal
+
 # Copy FreeRADIUS config templates
 COPY freeradius/ /etc/freeradius/3.0/templates/
 RUN chown -R freerad:freerad /etc/freeradius/3.0/templates/
@@ -88,6 +102,6 @@ RUN chown -R freerad:freerad /etc/freeradius/3.0/templates/
 COPY init.sh /var/www/daloradius/init.sh
 RUN chmod +x /var/www/daloradius/init.sh
 
-EXPOSE 80 8000 1812/udp 1813/udp
+EXPOSE 80 8000 8001 1812/udp 1813/udp
 
 CMD ["/bin/bash", "/var/www/daloradius/init.sh"]
