@@ -57,14 +57,6 @@
 
     <script src="/md5.js"></script>
     <script>
-        function switchTab(tab) {
-            document.querySelectorAll('.tab-content, .tab-btn').forEach(function(el) {
-                el.classList.remove('active');
-            });
-            document.getElementById('tab-' + tab).classList.add('active');
-            event.target.classList.add('active');
-        }
-
         function doLogin() {
             document.sendin.username.value = document.login.username.value;
             document.sendin.password.value = hexMD5('$(chap-id)' + document.login.password.value + '$(chap-challenge)');
@@ -74,6 +66,15 @@
 
     </script>
     $(endif)
+    <script>
+        function switchTab(tab, event) {
+            document.querySelectorAll('.tab-content, .tab-btn').forEach(function(el) {
+                el.classList.remove('active');
+            });
+            document.getElementById('tab-' + tab).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+    </script>
     <div class="ie-fixMinHeight">
         <div class="main">
             <div class="wrap animated fadeIn">
@@ -93,10 +94,10 @@
                         $(if error)$(error)$(endif)
                     </p>
                     <div class="tab-bar">
-                        <span class="tab-btn active" onclick="switchTab('login')">Username / Password</span>
-                        <span class="tab-btn" onclick="switchTab('voucher')">Voucher</span>
+                        <span class="tab-btn active" onclick="switchTab('voucher', event)">Voucher</span>
+                        <span class="tab-btn" onclick="switchTab('login', event)">Username / Password</span>
                     </div>
-                    <div id="tab-login" class="tab-content active">
+                    <div id="tab-login" class="tab-content">
                     <label>
                         <img class="ico" src="img/user.svg" alt="#" />
                         <input name="username" type="text" value="$(username)" placeholder="Username" />
@@ -108,7 +109,7 @@
                     </label>
                     </div>
 
-                    <div id="tab-voucher" class="tab-content">
+                    <div id="tab-voucher" class="tab-content active">
                     <label>
                         <img class="ico" src="img/password.svg" alt="#" />
                         <input type="text" placeholder="Voucher Code" oninput="document.login.username.value=this.value;document.login.password.value=this.value" />
