@@ -35,6 +35,14 @@
 }
 .tab-content { display: none; }
 .tab-content.active { display: block; }
+.cafe-title {
+    color: #fff;
+    text-align: center;
+    font-size: 28px;
+    font-weight: 600;
+    margin: 20px auto;
+    letter-spacing: 1px;
+}
 </style>
 </head>
 
@@ -207,6 +215,7 @@
                         2.83319697 0 0 Z " fill="#40BAA5" transform="translate(64,104)"/>
                         <path d="" fill="#6BC1A0" transform="translate(0,0)"/>
                     </svg>
+                    <h2 class="cafe-title">Njeremoto Internet Cafe</h2>
                     <p class="info $(if error)alert$(endif)">
                         $(if error == "")Please log in to use the internet hotspot service $(if trial == 'yes')<br />Free trial available, <a href="$(link-login-only)?dst=$(link-orig-esc)&amp;username=T-$(mac-esc)">click here</a>.$(endif)
                         $(endif)
