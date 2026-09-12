@@ -136,12 +136,19 @@
             rdReceiveCode(d.code);
         });
         function rdRescueCheck() {
-            // Full-page fallback delivery: #rd-voucher=CODE fragment
-            var m = /(?:^|[#&])rd-voucher=([A-Za-z0-9_-]+)/.exec(window.location.hash || "");
+            // Full-page fallback delivery: #rd-voucher=CODE fragment. Capture
+            // everything up to the next #/& and decode, so %-escapes from
+            // encodeURIComponent are handled; rdReceiveCode still validates
+            // the charset before anything is submitted or stashed.
+            var m = /(?:^|[#&])rd-voucher=([^&#]+)/.exec(window.location.hash || "");
             if (m) {
                 try { history.replaceState(null, "", window.location.pathname + window.location.search); } catch (e) {}
-                rdReceiveCode(m[1]);
-                return;
+                var hash_code = m[1];
+                try { hash_code = decodeURIComponent(hash_code); } catch (e) {}
+                if (RD_CODE_RE.test(hash_code)) {
+                    rdReceiveCode(hash_code);
+                    return;
+                }
             }
             // Rescue: a stashed code means we tried before (RADIUS race or
             // reload). Retry a couple of times, then fall back to manual.
