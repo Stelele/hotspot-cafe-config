@@ -180,13 +180,23 @@
                 }
             }
             // Rescue: a stashed code means we tried before (RADIUS race or
-            // reload). Retry a couple of times, then fall back to manual.
+            // reload with an auth error). A fresh voluntary visit (no error)
+            // means the stash is stale from an old session — clear it so a
+            // later re-login doesn't misfire retries with a consumed code.
+            var hadError = !!document.querySelector("p.info.alert");
             var stashed = null, attempts = 0;
             try {
                 stashed = sessionStorage.getItem("rd_voucher_code");
                 attempts = parseInt(sessionStorage.getItem("rd_voucher_attempts") || "0", 10);
             } catch (e) {}
             if (!stashed || !RD_CODE_RE.test(stashed)) return;
+            if (!hadError) {
+                try {
+                    sessionStorage.removeItem("rd_voucher_code");
+                    sessionStorage.removeItem("rd_voucher_attempts");
+                } catch (e) {}
+                return;
+            }
             attempts += 1;
             try { sessionStorage.setItem("rd_voucher_attempts", String(attempts)); } catch (e) {}
             if (attempts <= RD_MAX_RETRIES) {
