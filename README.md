@@ -162,6 +162,27 @@ Key design decisions:
 | Per-device connection cap | `/ip firewall filter` rule 23 | `chain=forward src-address=192.168.88.0/24 connection-state=new connection-limit=300,32 action=drop` |
 | Ad-blocking DNS | `/ip dns` | `94.140.14.14,94.140.15.15` (AdGuard) — applies to all hotspot clients (they resolve via 192.168.88.1) |
 
+### Voucher self-service (2026-09)
+
+`login.html` has a **Buy Voucher** tab — a full-page link to
+`https://njeremoto.jh.erpnext.com/voucher-checkout/?embed=1` carrying the
+router's `linklogin`/`linkorig` (URL-escaped). The customer buys with
+EcoCash/InnBucks/Omari on the portal; on payment the portal redirects back
+to the router login URL with the voucher code in a `#rd-voucher=` fragment,
+and the login page auto-submits it as PAP (username=password=code) — no code
+typing. A sessionStorage rescue banner retries twice and finally displays the
+code for manual entry. The portal origin must be walled-gardened pre-auth
+(`04-walled-garden.rsc`). Framing the portal in an iframe is NOT possible:
+Frappe Cloud's edge sends `X-Frame-Options: SAMEORIGIN` site-wide (a
+support ticket could exempt the route; `login.html` keeps a dormant
+postMessage receiver for that case). Requires `login-by` to include
+`http-pap` (it does).
+
+**Before uploading a new `login.html` to the router**: back up the live
+hotspot directory first — rollback is re-uploading the old `login.html`.
+The break-glass user documented above still works even if the new page is
+broken.
+
 ## 8. Droplet config
 
 - FreeRADIUS 3.0 + RADIUSDesk (CakePHP 4, `/var/www/rdcore/cake4/rd_cake`).

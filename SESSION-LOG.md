@@ -215,3 +215,31 @@ client must re-login to pick up a new profile rate.
   the 2.4 GHz hop entirely (currently not needed — 30 Mbps is fine).
 - ERP integration for voucher batch generation (the API patterns in PART 2 are
   what the ERP should call).
+
+## PART 9 — Embedded voucher purchase (2026-09-13, feature branch)
+
+Feature branch `feat/hotspot-embed-voucher-purchase`.
+
+- **Buy Voucher tab → full-page CTA.** `login.html` links out (not iframes) to
+  `https://njeremoto.jh.erpnext.com/voucher-checkout/?embed=1`, carrying the
+  router's `linklogin`/`linkorig` (URL-escaped). **Decision 2026-09-13:**
+  Frappe Cloud's edge sends `X-Frame-Options: SAMEORIGIN` site-wide → iframing
+  is not possible (a support ticket could exempt the route; `login.html` keeps
+  a dormant postMessage receiver for that case).
+- **`#rd-voucher=` fragment auto-login via PAP.** On payment the portal
+  redirects back to the router login URL with the code in the hash; the page
+  auto-submits it as PAP (username=password=code) — no typing. sessionStorage
+  rescue banner retries ≤2, then shows the code for manual entry.
+- **Portal side (frappe app):** embed mode + validated `linklogin`/`linkorig`,
+  rate limits, and a fulfilment retry scheduler.
+- **Walled garden + DoH blocks + keep-alive (pending rollout):** Phase 4
+  `04-walled-garden.rsc` — pre-auth walled-garden-ip for
+  `njeremoto.jh.erpnext.com`, drops DoH (tcp/udp 853) and known public
+  resolvers (1.1.1.1/1.0.0.1, 8.8.8.8/8.8.4.4, 9.9.9.9/149.112.112.112) so
+  clients must use the router's DNS; droplet keep-alive cron
+  (`curl ... voucher-checkout/` every 15 min) as anti-hibernate. Requires
+  `login-by` to include `http-pap` (it does).
+
+Status: **code complete on feature branch; rollout pending the QA checklist**
+(spec: radius_desk
+`docs/superpowers/specs/2026-09-12-hotspot-embed-voucher-purchase-design.md`).
