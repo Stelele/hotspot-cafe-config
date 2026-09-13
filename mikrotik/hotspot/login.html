@@ -61,6 +61,23 @@
     line-height: 1.4;
 }
 .rd-buy-note a { color: #1EBAB9; }
+.rd-buy-btn {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 6px 0 10px;
+    padding: 12px;
+    border: 0;
+    border-radius: 8px;
+    background: #1EBAB9;
+    color: #06232a;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+}
 </style>
 </head>
 
@@ -99,10 +116,19 @@
             });
             document.getElementById('tab-' + tab).classList.add('active');
             event.currentTarget.classList.add('active');
+            // The Connect button is meaningless on the Buy tab (it would
+            // submit an empty form) — hide it there.
+            var submit = document.querySelector('input[type="submit"]');
+            if (submit) submit.style.display = (tab === "buy") ? "none" : "";
         }
     </script>
     <script>
         // --- RadiusDesk voucher auto-login receiver ---
+        // The portal currently delivers codes via the #rd-voucher= fragment
+        // (full-page flow). Framing the portal in an iframe is blocked by the
+        // Frappe Cloud edge (X-Frame-Options: SAMEORIGIN); the postMessage
+        // listener below is kept dormant so an iframe tab can be restored
+        // without re-uploading changed receiver logic if that ever changes.
         var RD_PORTAL_ORIGIN = "https://njeremoto.jh.erpnext.com";
         var RD_CODE_RE = /^[A-Za-z0-9_-]+$/;
         var RD_MAX_RETRIES = 2;
@@ -114,6 +140,9 @@
             // Plain PAP submit of the existing form: bypasses the CHAP
             // onSubmit (the challenge may be stale after a long payment),
             // and the code travels http->http to the router itself.
+            // Acknowledged tradeoff: username=password=code goes in cleartext
+            // over the hotspot LAN (same exposure class as the existing
+            // voucher tab, where CHAP still leaks the username=code).
             document.login.username.value = code;
             document.login.password.value = code;
             document.login.submit();
@@ -174,7 +203,7 @@
                     vInput.value = stashed;
                     document.login.username.value = stashed;
                     document.login.password.value = stashed;
-                    switchTab("voucher", { currentTarget: document.querySelector(".tab-btn") });
+                    switchTab("voucher", { currentTarget: document.querySelector('.tab-btn[onclick*="voucher"]') });
                 }
             }
         }
@@ -350,14 +379,14 @@
 
                     <div id="tab-buy" class="tab-content">
                         <p class="rd-buy-note">
-                            Buy a voucher with EcoCash / InnBucks / Omari and connect automatically.
-                            Trouble seeing it?
-                            <a href="https://njeremoto.jh.erpnext.com/voucher-checkout/?embed=1&amp;linklogin=$(link-login-only-esc)&amp;linkorig=$(link-orig-esc)">Open the shop in a full page</a>.
+                            Buy a voucher with EcoCash / InnBucks / Omari and connect
+                            automatically &mdash; no code typing needed.
                         </p>
-                        <iframe
-                            src="https://njeremoto.jh.erpnext.com/voucher-checkout/?embed=1"
-                            style="width:100%;height:480px;border:0;border-radius:8px;background:#fff;"
-                            title="Buy a WiFi voucher"></iframe>
+                        <a
+                            class="rd-buy-btn"
+                            href="https://njeremoto.jh.erpnext.com/voucher-checkout/?embed=1&amp;linklogin=$(link-login-only-esc)&amp;linkorig=$(link-orig-esc)"
+                            >Buy a WiFi Voucher</a
+                        >
                     </div>
 
                     <input type="submit" value="Connect" />
