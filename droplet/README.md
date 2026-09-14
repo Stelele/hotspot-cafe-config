@@ -121,3 +121,12 @@ If it fails, check:
 - `/radius incoming print` on the router shows `accept=yes port=1700`
 - `wg1` is in the LAN interface list (Phase 3 step 4) so the firewall lets the
   packet in
+
+## Frappe portal keep-alive (anti-hibernate)
+
+A quiet single-site Frappe Cloud site can cold-start (or hibernate) right when
+a customer needs it. Keep it warm from the droplet (`crontab -e`):
+
+```
+*/15 * * * * curl -fsS -o /dev/null https://njeremoto.jh.erpnext.com/voucher-checkout/
+```

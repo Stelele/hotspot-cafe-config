@@ -43,6 +43,41 @@
     margin: 20px auto;
     letter-spacing: 1px;
 }
+.rd-banner {
+    display: none;
+    background: rgba(30,186,185,0.15);
+    border: 1px solid #1EBAB9;
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin-bottom: 14px;
+    font-size: 13px;
+    text-align: center;
+}
+.rd-buy-note {
+    color: rgba(255,255,255,0.6);
+    font-size: 12px;
+    margin: 0 0 10px;
+    line-height: 1.4;
+}
+.rd-buy-note a { color: #1EBAB9; }
+.rd-buy-btn {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 6px 0 10px;
+    padding: 12px;
+    border: 0;
+    border-radius: 8px;
+    background: #1EBAB9;
+    color: #06232a;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+}
 </style>
 </head>
 
@@ -81,6 +116,111 @@
             });
             document.getElementById('tab-' + tab).classList.add('active');
             event.currentTarget.classList.add('active');
+            // The Connect button is meaningless on the Buy tab (it would
+            // submit an empty form) — hide it there.
+            var submit = document.querySelector('input[type="submit"]');
+            if (submit) submit.style.display = (tab === "buy") ? "none" : "";
+        }
+    </script>
+    <script>
+        // --- RadiusDesk voucher auto-login receiver ---
+        // The portal currently delivers codes via the #rd-voucher= fragment
+        // (full-page flow). Framing the portal in an iframe is blocked by the
+        // Frappe Cloud edge (X-Frame-Options: SAMEORIGIN); the postMessage
+        // listener below is kept dormant so an iframe tab can be restored
+        // without re-uploading changed receiver logic if that ever changes.
+        var RD_PORTAL_ORIGIN = "https://njeremoto.jh.erpnext.com";
+        var RD_CODE_RE = /^[A-Za-z0-9_-]+$/;
+        var RD_MAX_RETRIES = 2;
+
+        function rdStashCode(code) {
+            try { sessionStorage.setItem("rd_voucher_code", code); } catch (e) {}
+        }
+        function rdSubmitCode(code) {
+            // Plain PAP submit of the existing form: bypasses the CHAP
+            // onSubmit (the challenge may be stale after a long payment),
+            // and the code travels http->http to the router itself.
+            // Acknowledged tradeoff: username=password=code goes in cleartext
+            // over the hotspot LAN (same exposure class as the existing
+            // voucher tab, where CHAP still leaks the username=code).
+            document.login.username.value = code;
+            document.login.password.value = code;
+            document.login.submit();
+        }
+        function rdShowBanner(html) {
+            var el = document.getElementById("rd-banner");
+            if (!el) return;
+            el.innerHTML = html;
+            el.style.display = "block";
+        }
+        function rdReceiveCode(code) {
+            rdStashCode(code);
+            rdShowBanner("Connecting you to the internet&hellip;");
+            rdSubmitCode(code);
+        }
+        window.addEventListener("message", function (e) {
+            if (e.origin !== RD_PORTAL_ORIGIN) return;
+            var d = e.data || {};
+            if (d.source !== "rd-voucher" || !RD_CODE_RE.test(d.code || "")) return;
+            rdReceiveCode(d.code);
+        });
+        function rdRescueCheck() {
+            // Full-page fallback delivery: #rd-voucher=CODE fragment. Capture
+            // everything up to the next #/& and decode, so %-escapes from
+            // encodeURIComponent are handled; rdReceiveCode still validates
+            // the charset before anything is submitted or stashed.
+            var m = /(?:^|[#&])rd-voucher=([^&#]+)/.exec(window.location.hash || "");
+            if (m) {
+                try { history.replaceState(null, "", window.location.pathname + window.location.search); } catch (e) {}
+                var hash_code = m[1];
+                try { hash_code = decodeURIComponent(hash_code); } catch (e) {}
+                if (RD_CODE_RE.test(hash_code)) {
+                    rdReceiveCode(hash_code);
+                    return;
+                }
+            }
+            // Rescue: a stashed code means we tried before (RADIUS race or
+            // reload with an auth error). A fresh voluntary visit (no error)
+            // means the stash is stale from an old session — clear it so a
+            // later re-login doesn't misfire retries with a consumed code.
+            var hadError = !!document.querySelector("p.info.alert");
+            var stashed = null, attempts = 0;
+            try {
+                stashed = sessionStorage.getItem("rd_voucher_code");
+                attempts = parseInt(sessionStorage.getItem("rd_voucher_attempts") || "0", 10);
+            } catch (e) {}
+            if (!stashed || !RD_CODE_RE.test(stashed)) return;
+            if (!hadError) {
+                try {
+                    sessionStorage.removeItem("rd_voucher_code");
+                    sessionStorage.removeItem("rd_voucher_attempts");
+                } catch (e) {}
+                return;
+            }
+            attempts += 1;
+            try { sessionStorage.setItem("rd_voucher_attempts", String(attempts)); } catch (e) {}
+            if (attempts <= RD_MAX_RETRIES) {
+                rdShowBanner("Reconnecting you&hellip; (attempt " + attempts + " of " + (RD_MAX_RETRIES + 1) + ")");
+                setTimeout(function () { rdSubmitCode(stashed); }, 1000);
+            } else {
+                try {
+                    sessionStorage.removeItem("rd_voucher_code");
+                    sessionStorage.removeItem("rd_voucher_attempts");
+                } catch (e) {}
+                rdShowBanner("Auto-connect failed. Your voucher code is <b>" + stashed + "</b> &mdash; press Connect below.");
+                var vInput = document.querySelector("#tab-voucher input");
+                if (vInput) {
+                    vInput.value = stashed;
+                    document.login.username.value = stashed;
+                    document.login.password.value = stashed;
+                    switchTab("voucher", { currentTarget: document.querySelector('.tab-btn[onclick*="voucher"]') });
+                }
+            }
+        }
+        if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", rdRescueCheck);
+        } else {
+            rdRescueCheck();
         }
     </script>
     <div class="ie-fixMinHeight">
@@ -222,9 +362,11 @@
 
                         $(if error)$(error)$(endif)
                     </p>
+                    <div id="rd-banner" class="rd-banner"></div>
                     <div class="tab-bar">
                         <span class="tab-btn active" onclick="switchTab('voucher', event)">Voucher</span>
                         <span class="tab-btn" onclick="switchTab('login', event)">Username / Password</span>
+                        <span class="tab-btn" onclick="switchTab('buy', event)">Buy Voucher</span>
                     </div>
                     <div id="tab-login" class="tab-content">
                     <label>
@@ -243,6 +385,18 @@
                         <img class="ico" src="img/password.svg" alt="#" />
                         <input type="text" placeholder="Voucher Code" oninput="document.login.username.value=this.value;document.login.password.value=this.value" />
                     </label>
+                    </div>
+
+                    <div id="tab-buy" class="tab-content">
+                        <p class="rd-buy-note">
+                            Buy a voucher with EcoCash / InnBucks / Omari and connect
+                            automatically &mdash; no code typing needed.
+                        </p>
+                        <a
+                            class="rd-buy-btn"
+                            href="https://njeremoto.jh.erpnext.com/voucher-checkout/?embed=1&amp;linklogin=$(link-login-only-esc)&amp;linkorig=$(link-orig-esc)"
+                            >Buy a WiFi Voucher</a
+                        >
                     </div>
 
                     <input type="submit" value="Connect" />
