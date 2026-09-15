@@ -5,7 +5,8 @@
 # Verify with the QA checklist in radius_desk
 # docs/superpowers/specs/2026-09-12-hotspot-embed-voucher-purchase-design.md
 
-/ip hotspot walled-garden-ip
+# NOTE: the console menu is "walled-garden ip" (space) — NOT "walled-garden-ip".
+/ip hotspot walled-garden ip
 add action=allow dst-host=njeremoto.jh.erpnext.com comment="Frappe guest voucher portal (pre-auth)"
 
 # Block DNS-over-HTTPS / DNS-over-TLS bypass: a client using DoH resolves
