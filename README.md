@@ -178,10 +178,16 @@ support ticket could exempt the route; `login.html` keeps a dormant
 postMessage receiver for that case). Requires `login-by` to include
 `http-pap` (it does).
 
+**Deployed 2026-09-15.** RouterOS notes for future edits: the walled-garden
+menu is `/ip hotspot walled-garden ip` (space) with `action=accept` (not
+`allow`); apply config changes over SSH rather than `/import` (the import
+parser is stricter). A bypassed mgmt client reaching router port 80 gets
+WebFig, not the login page — verify hotspot pages from an unauthenticated
+client. The break-glass hotspot user is currently NOT on the router; rescue
+is SSH (droplet hop or LAN) or WinBox by MAC.
+
 **Before uploading a new `login.html` to the router**: back up the live
 hotspot directory first — rollback is re-uploading the old `login.html`.
-The break-glass user documented above still works even if the new page is
-broken.
 
 ## 8. Droplet config
 

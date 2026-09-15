@@ -232,14 +232,42 @@ Feature branch `feat/hotspot-embed-voucher-purchase`.
   rescue banner retries ≤2, then shows the code for manual entry.
 - **Portal side (frappe app):** embed mode + validated `linklogin`/`linkorig`,
   rate limits, and a fulfilment retry scheduler.
-- **Walled garden + DoH blocks + keep-alive (pending rollout):** Phase 4
-  `04-walled-garden.rsc` — pre-auth walled-garden-ip for
-  `njeremoto.jh.erpnext.com`, drops DoH (tcp/udp 853) and known public
+- **Walled garden + DoT/DoH blocks (deployed 2026-09-15):** Phase 4
+  `04-walled-garden.rsc` — pre-auth walled-garden ip for
+  `njeremoto.jh.erpnext.com`, drops DoT/DoH (tcp/udp 853) and known public
   resolvers (1.1.1.1/1.0.0.1, 8.8.8.8/8.8.4.4, 9.9.9.9/149.112.112.112) so
-  clients must use the router's DNS; droplet keep-alive cron
-  (`curl ... voucher-checkout/` every 15 min) as anti-hibernate. Requires
-  `login-by` to include `http-pap` (it does).
+  clients must use the router's DNS. Requires `login-by` to include
+  `http-pap` (it does).
 
-Status: **code complete on feature branch; rollout pending the QA checklist**
-(spec: radius_desk
+Status: **deployed to router 2026-09-15** (see PART 10); device QA in
+progress (spec: radius_desk
 `docs/superpowers/specs/2026-09-12-hotspot-embed-voucher-purchase-design.md`).
+
+## PART 10 — Buy Voucher rollout to live router (2026-09-15)
+
+- Pre-flight: ROS 7.22.2, `hsprof1` as-built (`login-by=cookie,http-chap,http-pap`).
+  Config backup `pre-buyvoucher.{rsc,backup}` on router + downloaded to
+  `~/hotspot-backup-20260915/` together with the old `login.html`
+  (byte-identical to repo `276efb9`).
+- `login.html` (Buy Voucher CTA + fragment receiver) uploaded; round-trip
+  byte-verified; rollback drill executed (old file restored + verified, new
+  file re-deployed).
+- Walled garden + DoT/DoH drops applied over SSH (not import). Two RouterOS
+  gotchas found and fixed in the repo script (`8f6f734`, `8be1af1`):
+  - menu is `/ip hotspot walled-garden ip` (space, not hyphenated)
+  - action is `accept` (`allow` is hostname-menu only; the import parser
+    rejects `action=allow` here — that was the import syntax error)
+- Portal-side production checks passed: pinned `Hotspot Login URL`
+  (http://192.168.88.1/login) accepts the real router URL, drops other
+  private IPs (`10.66.66.6` → null) and public hosts (evil.com → null);
+  portal answers 200 in ~0.65s.
+- NOTE: bypassed mgmt clients get WebFig on router port 80, NOT the hotspot
+  login page — the login page can only be verified from an unauthenticated
+  hotspot client.
+- Finding: the break-glass hotspot user `admin` from `03-hotspot-radius.rsc`
+  is NOT present on the live router (only default-trial). SSH/WinBox remain
+  the rescue paths. Owner to decide whether to re-add it.
+- Removed the droplet keep-alive cron from docs (unverified hibernation
+  premise; dedicated FC benches don't auto-sleep).
+
+Status: router-side rollout complete; device QA checklist pending.
