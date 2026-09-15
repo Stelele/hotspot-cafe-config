@@ -183,8 +183,9 @@ menu is `/ip hotspot walled-garden ip` (space) with `action=accept` (not
 `allow`); apply config changes over SSH rather than `/import` (the import
 parser is stricter). A bypassed mgmt client reaching router port 80 gets
 WebFig, not the login page — verify hotspot pages from an unauthenticated
-client. The break-glass hotspot user is currently NOT on the router; rescue
-is SSH (droplet hop or LAN) or WinBox by MAC.
+client. Break-glass: hotspot user `admin` exists (profile `default`, server
+`all`); its password is held out-of-band, NOT in this public repo — log in
+via the Username/Password tab if the voucher/RADIUS flow breaks.
 
 **Before uploading a new `login.html` to the router**: back up the live
 hotspot directory first — rollback is re-uploading the old `login.html`.

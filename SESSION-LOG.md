@@ -264,9 +264,11 @@ progress (spec: radius_desk
 - NOTE: bypassed mgmt clients get WebFig on router port 80, NOT the hotspot
   login page — the login page can only be verified from an unauthenticated
   hotspot client.
-- Finding: the break-glass hotspot user `admin` from `03-hotspot-radius.rsc`
-  is NOT present on the live router (only default-trial). SSH/WinBox remain
-  the rescue paths. Owner to decide whether to re-add it.
+- Finding: the break-glass hotspot user `admin` was present on the live
+  router but with an **empty password** (export showed no `password=`) and
+  had been authenticated ~39s prior — an open login. Set a strong password
+  (held out-of-band; NOT committed to this public repo). Verify via the
+  Username/Password tab if RADIUS ever breaks.
 - Removed the droplet keep-alive cron from docs (unverified hibernation
   premise; dedicated FC benches don't auto-sleep).
 
