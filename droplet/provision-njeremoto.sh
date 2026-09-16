@@ -26,9 +26,13 @@ CLOUD_ID="${CLOUD_ID:-23}"
 MODE="${1:---run}"
 
 api() { # api <controller/action.json> [curl-data-args...]
+	# NOTE: list endpoints read cloud_id from the QUERY string
+	# ($request->getQuery()), while add endpoints read it from the POST
+	# body. Send it in both places; each controller reads what it needs.
 	local endpoint="$1"; shift
-	curl -s --max-time 30 -X POST "https://$RD_HOST/cake4/rd_cake/$endpoint" \
-		--data-urlencode token="$TOKEN" "$@"
+	curl -s --max-time 30 -X POST "https://$RD_HOST/cake4/rd_cake/$endpoint?cloud_id=$CLOUD_ID" \
+		--data-urlencode token="$TOKEN" \
+		--data-urlencode cloud_id="$CLOUD_ID" "$@"
 }
 
 echo "== authenticate =="
