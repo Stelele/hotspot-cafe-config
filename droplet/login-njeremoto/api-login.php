@@ -25,8 +25,9 @@ $in = json_decode(file_get_contents('php://input'), true);
 if (!is_array($in)) { fail('Bad request.', 400); }
 $user = substr((string)($in['user'] ?? ''), 0, 64);
 $pass = substr((string)($in['pass'] ?? ''), 0, 128);
-$ip = (string)($in['ip'] ?? '');
-$mac = strtoupper((string)($in['mac'] ?? ''));
+// Defensive: values transit two rounds of URL-encoding on the way in.
+$ip = urldecode((string)($in['ip'] ?? ''));
+$mac = strtoupper(urldecode((string)($in['mac'] ?? '')));
 
 if (!preg_match('/^[A-Za-z0-9_.@+-]{1,64}$/', $user)) { fail('Invalid voucher or username/password.'); }
 if ($pass === '' || preg_match('/[\x00-\x1F\x7F]/', $pass)) { fail('Invalid voucher or username/password.'); }

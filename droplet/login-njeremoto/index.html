@@ -85,8 +85,17 @@ input[type=submit] { width: 100%; padding: 12px; border: 0; border-radius: 8px;
   }
 
   // Context POSTed by the hotspot stub (v3 carries client_ip).
-  var clientIp = qp('client_ip');
-  var clientMac = qp('mac');
+  // NOTE: stub values pass through TWO rounds of URL-encoding (router $(mac-esc)
+  // is pre-escaped, then browser-detect re-encodes the query), so decode twice.
+  function qp2(name) {
+    var v = qp(name);
+    for (var i = 0; i < 2 && v.indexOf('%') !== -1; i++) {
+      try { v = decodeURIComponent(v); } catch (e) { break; }
+    }
+    return v;
+  }
+  var clientIp = qp2('client_ip');
+  var clientMac = qp2('mac');
   var linkOrig = qp('link_orig');
   var form = document.getElementById('login');
   var banner = document.getElementById('rd-banner');
