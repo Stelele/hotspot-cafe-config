@@ -40,6 +40,9 @@ input[type=submit] { width: 100%; padding: 12px; border: 0; border-radius: 8px;
   border: 1px solid var(--teal); color: var(--teal); font-size: 15px; font-weight: 600;
   text-align: center; text-decoration: none; }
 .hidden { display: none !important; }
+.btn-teal { display: block; width: 100%; box-sizing: border-box; padding: 12px;
+  border-radius: 8px; background: #1EBAB9; color: #06232a; font-size: 15px;
+  font-weight: 700; text-align: center; text-decoration: none; }
 .foot { margin-top: 16px; font-size: 12px; color: rgba(255,255,255,.45); }
 .foot a { color: var(--teal); text-decoration: none; }
 </style>
@@ -61,6 +64,7 @@ input[type=submit] { width: 100%; padding: 12px; border: 0; border-radius: 8px;
       <tr><td>Uploaded</td><td class="v" id="u-up">–</td></tr>
     </table>
     <p class="sub" id="u-updated"></p>
+    <a id="u-continue" class="hidden btn-teal" href="https://www.google.com">Continue browsing</a>
   </div>
 
   <!-- Login mode: same server-side flow as the main login page -->
@@ -108,6 +112,8 @@ input[type=submit] { width: 100%; padding: 12px; border: 0; border-radius: 8px;
   try { if (!ip) ip = localStorage.getItem('rd_last_ip') || ''; } catch (e) {}
   var mac = qp2('mac');
   var linkOrig = qp2('link_orig');
+  var nextUrl = qp2('next'); // post-login Continue target (server-built, trusted)
+  if (!/^https?:\/\//i.test(nextUrl)) { nextUrl = ''; }
 
   function fmtBytes(n) {
     n = parseInt(n || '0', 10);
@@ -142,6 +148,9 @@ input[type=submit] { width: 100%; padding: 12px; border: 0; border-radius: 8px;
           document.getElementById('u-up').textContent = fmtBytes(j.session.bytes_in);
           document.getElementById('u-updated').textContent =
             j.session.stale ? 'Last updated a few minutes ago' : 'Live session';
+          var cont = document.getElementById('u-continue');
+          cont.href = nextUrl || 'https://www.google.com';
+          cont.classList.remove('hidden');
           document.getElementById('usage').classList.remove('hidden');
           sub.textContent = 'Your current session';
         } else { showLogin('No active session found — please log in'); }
@@ -161,9 +170,10 @@ input[type=submit] { width: 100%; padding: 12px; border: 0; border-radius: 8px;
     fetch('api-login.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user: user, pass: pass, ip: ip, mac: mac, entry: 'status' })
+      body: JSON.stringify({ user: user, pass: pass, ip: ip, mac: mac, link_orig: linkOrig })
     }).then(function (r) { return r.json(); }).then(function (j) {
-      if (j && j.ok) { window.location.href = j.dst || (window.location.pathname + '?ip=' + encodeURIComponent(ip)); }
+      if (j && j.ok && j.dst) { window.location.href = j.dst; }
+      else if (j && j.ok) { window.location.href = window.location.pathname + '?ip=' + encodeURIComponent(ip); }
       else {
         setBusy(false);
         showBanner((j && j.error) || 'Login failed. Please check your code and try again.');

@@ -1,31 +1,33 @@
-# Droplet-hosted Njeremoto login pages (full-POST flow, no AJAX to router)
+# Droplet-hosted Njeremoto portal (server-side login, no browser-to-router calls)
 
 Why: the stock bootstrap5 engine logs in via JSONP to http://192.168.88.1,
 which every modern full browser blocks as mixed content from an https page
-("MT Not responding to login requests"). These pages do a classic top-level
-form POST instead — never blocked — and the router redirects to `dst`.
+("MT Not responding to login requests") — and a direct form POST triggers
+Chrome's insecure-form warning. So the browser talks HTTPS only to the droplet;
+the droplet logs the device into the router via RouterOS API over WireGuard.
 
 Live on droplet (UNTRACKED dir, survives rdcore pulls):
-`/var/www/rdcore/login/njeremoto/index.html` + `connected.html`.
+`/var/www/rdcore/login/njeremoto/` = `index.html`, `usage.html`,
+`api-login.php`, `api-usage.php`.
 Source of truth: `droplet/login-njeremoto/` in this repo (scp to deploy).
 
 - `index.html`: Njeremoto skin (bird SVG from `mikrotik/hotspot/login.html`),
   Voucher tab (input + Connect, Buy button BELOW it) + Username/Password tab.
-  POSTs username/password/dst to `link_login_only` (PAP). `#rd-voucher=`
-  receiver auto-submits. Zero `http://` subresources (verified).
-- `connected.html`: static "You're online" fallback landing + usage link.
+  Submits to `api-login.php` (same-origin fetch); lands on usage-first dst.
+  `#rd-voucher=` receiver auto-submits. Zero `http://` refs (verified).
+- `usage.html`: dual-mode usage-or-login at
+  `https://status-radius.giftmugweni.com` (bare domain 302s here via nginx).
+  Shows open session (username, uptime, data) + Continue button, else login.
+- `api-login.php`: RouterOS `/ip/hotspot/active/login` via API; server-built
+  dst (usage + `?ip=` + optional `&next=`); rate-limited; secret from php-fpm
+  env (`zz-njeremoto.conf`), never in code.
+- `api-usage.php`: open-radacct lookup by framed IP; DB pass from php-fpm env.
 
 RADIUSDesk wiring (DB): detail 21 `theme='Custom'`,
 `mikrotik_desktop/mobile_url` AND `coova_desktop/mobile_url` all =
 `https://radius.giftmugweni.com/login/njeremoto/index.html`
 (the mikrotik detect path reads the coova_* columns — codebase quirk).
 
-Router: `hotspot-redirect/login.html` stub v2 also POSTs `link_orig`
-(`$(link-orig)`) so the page knows `dst`. Rollback: detail 21
-`theme='Default'` restores stock bootstrap5 in seconds.
-
-Companion fix (separate repo): Frappe `radius_desk` branch
-`feat/portal-return-to-droplet-login` lets the checkout return #rd-voucher=
-to this page. MUST be merged + pulled on the Frappe Cloud bench (with migrate
-for the new `hotspot_portal_return_prefix` setting) or Buy auto-return stays
-broken — manual code entry still works.
+Router: `hotspot-redirect/login.html` stub v3 POSTs `link_orig` (`$(link-orig)`)
+and `client_ip` (`$(ip)`) so the pages know dst + which host to bind.
+Rollback: detail 21 `theme='Default'` restores stock bootstrap5 in seconds.

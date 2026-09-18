@@ -96,7 +96,7 @@ input[type=submit] { width: 100%; padding: 12px; border: 0; border-radius: 8px;
   }
   var clientIp = qp2('client_ip');
   var clientMac = qp2('mac');
-  var linkOrig = qp('link_orig');
+  var linkOrig = qp2('link_orig');
   var form = document.getElementById('login');
   var banner = document.getElementById('rd-banner');
 
@@ -110,8 +110,8 @@ input[type=submit] { width: 100%; padding: 12px; border: 0; border-radius: 8px;
     showBanner('This page was opened without hotspot context. Please join the WiFi network and try again.');
     form.style.display = 'none';
   }
-  var dstUrl = linkOrig ||
-    'https://radius.giftmugweni.com/login/njeremoto/connected.html';
+  // Post-login landing is usage-first (server decides dst, incl. ?ip= and
+  // Continue target). linkOrig is only passed through for the Continue button.
 
   // Buy button: checkout returns #rd-voucher= to THIS page (full URL incl. query).
   var PORTAL = 'https://njeremoto.jh.erpnext.com/voucher-checkout/?embed=1';
@@ -132,16 +132,19 @@ input[type=submit] { width: 100%; padding: 12px; border: 0; border-radius: 8px;
 
   var CODE_RE = /^[A-Za-z0-9_-]+$/;
   // Server-side login via the droplet endpoint (same-origin HTTPS).
+  // Landing is usage-first: the endpoint returns the dst to navigate to.
   function doLogin(user, pass) {
     setBusy(true);
     showBanner('Connecting you to the internet&hellip;');
     fetch('api-login.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user: user, pass: pass, ip: clientIp, mac: clientMac })
+      body: JSON.stringify({ user: user, pass: pass, ip: clientIp, mac: clientMac, link_orig: linkOrig })
     }).then(function (r) { return r.json(); }).then(function (j) {
-      if (j && j.ok) {
-        window.location.href = dstUrl;
+      if (j && j.ok && j.dst) {
+        window.location.href = j.dst;
+      } else if (j && j.ok) {
+        window.location.href = 'https://status-radius.giftmugweni.com/login/njeremoto/usage.html?ip=' + encodeURIComponent(clientIp);
       } else {
         setBusy(false);
         showBanner((j && j.error) || 'Login failed. Please check your code and try again.');

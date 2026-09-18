@@ -83,13 +83,16 @@ try {
     if ($trap !== '') {
         fail('Invalid voucher or username/password.', 200, 'router trap for ' . $ip . ': ' . $trap);
     }
-    // Success landing: status-portal entry returns to usage with ?ip=;
-    // hotspot flow uses link_orig/connected (decided page-side via dst hint).
-    $entry = (string)($in['entry'] ?? '');
-    $dst = (string)($in['dst'] ?? '');
-    if ($entry === 'status') {
-        $dst = 'https://status-radius.giftmugweni.com/login/njeremoto/usage.html?ip=' . $ip;
+    // Success landing: ALWAYS the usage page first (usage-first flow).
+    // dst is server-built: usage + ?ip= and, when the router supplied a
+    // link_orig, &next= for the Continue button. Client-supplied dst is
+    // ignored (open-redirect guard); link_orig comes from the router stub.
+    $next = urldecode((string)($in['link_orig'] ?? ''));
+    $nextParam = '';
+    if (preg_match('#^https?://[^\\s/$.?#].[^\\s]*$#i', $next)) {
+        $nextParam = '&next=' . rawurlencode($next);
     }
+    $dst = 'https://status-radius.giftmugweni.com/login/njeremoto/usage.html?ip=' . $ip . $nextParam;
     echo json_encode(['ok' => true, 'dst' => $dst]);
 } catch (\Throwable $e) {
     fail('Invalid voucher or username/password.', 200, 'api exception for ' . $ip . ': ' . get_class($e));
