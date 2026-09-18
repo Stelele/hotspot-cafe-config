@@ -127,9 +127,13 @@ input[type=submit] { width: 100%; padding: 12px; border: 0; border-radius: 8px;
   // Continue target). linkOrig is only passed through for the Continue button.
 
   // Buy button: checkout returns #rd-voucher= to THIS page (full URL incl. query).
+  // Buy return is canonicalized to the primary portal host: the checkout's
+  // pinned return prefix only allows radius.giftmugweni.com, and both vhosts
+  // serve identical files, so the status host returns here with no difference.
   var PORTAL = 'https://njeremoto.jh.erpnext.com/voucher-checkout/?embed=1';
+  var CANONICAL_LOGIN = 'https://radius.giftmugweni.com' + window.location.pathname;
   document.getElementById('rd-buy-btn').href = PORTAL +
-    '&linklogin=' + encodeURIComponent(window.location.href.split('#')[0]) +
+    '&linklogin=' + encodeURIComponent(CANONICAL_LOGIN + window.location.search) +
     (linkOrig ? '&linkorig=' + encodeURIComponent(linkOrig) : '');
 
   // Tabs.
