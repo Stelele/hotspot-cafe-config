@@ -80,7 +80,14 @@ try {
     if ($trap !== '') {
         fail('Invalid voucher or username/password.', 200, 'router trap for ' . $ip . ': ' . $trap);
     }
-    echo json_encode(['ok' => true]);
+    // Success landing: status-portal entry returns to usage with ?ip=;
+    // hotspot flow uses link_orig/connected (decided page-side via dst hint).
+    $entry = (string)($in['entry'] ?? '');
+    $dst = (string)($in['dst'] ?? '');
+    if ($entry === 'status') {
+        $dst = 'https://status.radius.giftmugweni.com/login/njeremoto/usage.html?ip=' . $ip;
+    }
+    echo json_encode(['ok' => true, 'dst' => $dst]);
 } catch (\Throwable $e) {
     fail('Invalid voucher or username/password.', 200, 'api exception for ' . $ip . ': ' . get_class($e));
 }
