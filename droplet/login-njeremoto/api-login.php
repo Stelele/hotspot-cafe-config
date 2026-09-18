@@ -85,7 +85,7 @@ try {
     $entry = (string)($in['entry'] ?? '');
     $dst = (string)($in['dst'] ?? '');
     if ($entry === 'status') {
-        $dst = 'https://status.radius.giftmugweni.com/login/njeremoto/usage.html?ip=' . $ip;
+        $dst = 'https://status-radius.giftmugweni.com/login/njeremoto/usage.html?ip=' . $ip;
     }
     echo json_encode(['ok' => true, 'dst' => $dst]);
 } catch (\Throwable $e) {
