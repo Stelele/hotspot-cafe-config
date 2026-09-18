@@ -56,6 +56,12 @@ input[type=submit] { width: 100%; padding: 12px; border: 0; border-radius: 8px;
 .btn-teal { display: block; width: 100%; box-sizing: border-box; padding: 12px;
   border-radius: 8px; background: #1EBAB9; color: #06232a; font-size: 15px;
   font-weight: 700; text-align: center; text-decoration: none; }
+.btn-ghost { display: block; width: 100%; box-sizing: border-box; padding: 10px;
+  margin-top: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,.35);
+  color: #fff; font-size: 14px; font-weight: 600; text-align: center;
+  text-decoration: none; }
+#u-qr { margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.12); }
+#u-qr img { border-radius: 8px; }
 .foot { margin-top: 16px; font-size: 12px; color: rgba(255,255,255,.45); }
 .foot a { color: var(--teal); text-decoration: none; }
 </style>
@@ -73,12 +79,18 @@ input[type=submit] { width: 100%; padding: 12px; border: 0; border-radius: 8px;
     <table>
       <tr><td>User</td><td class="v" id="u-user">–</td></tr>
       <tr><td>Status</td><td class="v">Online</td></tr>
-      <tr><td>Online time</td><td class="v" id="u-time">–</td></tr>
+      <tr><td>Time used</td><td class="v" id="u-time">–</td></tr>
+      <tr><td>Time left</td><td class="v" id="u-left">–</td></tr>
       <tr><td>Downloaded</td><td class="v" id="u-down">–</td></tr>
       <tr><td>Uploaded</td><td class="v" id="u-up">–</td></tr>
     </table>
     <p class="sub" id="u-updated"></p>
     <a id="u-continue" class="hidden btn-teal" href="https://www.google.com">Continue browsing</a>
+    <a id="u-logout" class="hidden btn-ghost" href="#">Log out</a>
+    <div id="u-qr">
+      <img src="img/status-qr.png" alt="WiFi status QR" width="120" height="120">
+      <p class="sub">Bookmark or scan to get back here anytime</p>
+    </div>
   </div>
 
   <!-- Login mode: same server-side flow as the main login page -->
@@ -127,6 +139,7 @@ input[type=submit] { width: 100%; padding: 12px; border: 0; border-radius: 8px;
   try { if (!ip) ip = localStorage.getItem('rd_last_ip') || ''; } catch (e) {}
   var mac = qp2('mac');
   var linkOrig = qp2('link_orig');
+  var linkLogout = qp2('link_logout'); // router logout servlet (stub-posted)
   var nextUrl = qp2('next'); // post-login Continue target (server-built, trusted)
   if (!/^https?:\/\//i.test(nextUrl)) { nextUrl = ''; }
 
@@ -151,27 +164,41 @@ input[type=submit] { width: 100%; padding: 12px; border: 0; border-radius: 8px;
   }
 
   // Usage lookup first; fall through to login when no open session.
-  if (!ip) { showLogin(); }
-  else {
+  // Re-polled every 15s while visible so time/data tick live.
+  function loadUsage() {
     fetch('api-usage.php?ip=' + encodeURIComponent(ip))
       .then(function (r) { return r.json(); })
       .then(function (j) {
         if (j && j.ok && j.session) {
           try { localStorage.setItem('rd_last_ip', ip); } catch (e) {}
           document.getElementById('u-user').textContent = j.session.username;
-          document.getElementById('u-time').textContent = fmtDur(j.session.online_seconds);
+          document.getElementById('u-time').textContent = j.session.uptime || fmtDur(j.session.online_seconds);
+          document.getElementById('u-left').textContent = j.session.time_left || '—';
           document.getElementById('u-down').textContent = fmtBytes(j.session.bytes_out);
           document.getElementById('u-up').textContent = fmtBytes(j.session.bytes_in);
           document.getElementById('u-updated').textContent =
-            j.session.stale ? 'Last updated a few minutes ago' : 'Live session';
+            j.session.live ? 'Live' : 'Last updated a few minutes ago';
           var cont = document.getElementById('u-continue');
           cont.href = nextUrl || 'https://www.google.com';
           cont.classList.remove('hidden');
+          var lo = document.getElementById('u-logout');
+          if (linkLogout && /^http:\/\//i.test(linkLogout)) {
+            lo.href = linkLogout + (linkLogout.indexOf('?') === -1 ? '?' : '&') +
+              'dst=' + encodeURIComponent(window.location.href.split('#')[0]);
+            lo.classList.remove('hidden');
+          }
           document.getElementById('usage').classList.remove('hidden');
           sub.textContent = 'Your current session';
         } else { showLogin('No active session found — please log in'); }
       })
       .catch(function () { showLogin(); });
+  }
+  if (!ip) { showLogin(); }
+  else {
+    loadUsage();
+    setInterval(function () {
+      if (!document.getElementById('usage').classList.contains('hidden')) loadUsage();
+    }, 15000);
   }
 
   // Login mode (server-side, same as main page). Success returns HERE with ?ip=.

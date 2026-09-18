@@ -1,6 +1,8 @@
 <?php
 // Njeremoto usage lookup (UNTRACKED in rdcore git). Same-origin only.
-// GET ?ip=192.168.88.x -> open radacct session (or empty: caller shows login).
+// GET ?ip=192.168.88.x -> live RouterOS session first (uptime, time left,
+// bytes verbatim — session-scoped, no cap math), radacct fallback second,
+// empty (caller shows login) when neither has the IP.
 declare(strict_types=1);
 header('Content-Type: application/json');
 
@@ -42,6 +44,36 @@ try {
     echo json_encode(['ok' => true, 'session' => null]); exit;
 }
 
+// Live first: RouterOS active entry (authoritative session counters).
+try {
+    require '/var/www/rdcore/cake4/rd_cake/vendor/autoload.php';
+    $apiPass = getenv('HOTSPOT_API_PASS');
+    if ($apiPass) {
+        $client = new \RouterOS\Client([
+            'host' => '10.10.10.2', 'user' => 'hotspot-api', 'pass' => $apiPass,
+            'port' => 8728, 'timeout' => 4,
+        ]);
+        $q = (new \RouterOS\Query('/ip/hotspot/active/print'))->where('address', $ip);
+        foreach ($client->query($q)->read() as $e) {
+            $e = (array)$e;
+            if (($e['address'] ?? '') !== $ip) { continue; }
+            echo json_encode(['ok' => true, 'session' => [
+                'username' => $e['user'] ?? '',
+                'uptime' => $e['uptime'] ?? '',
+                'time_left' => $e['session-time-left'] ?? '',
+                'bytes_in' => (int)($e['bytes-in'] ?? 0),
+                'bytes_out' => (int)($e['bytes-out'] ?? 0),
+                'live' => true,
+            ]]);
+            exit;
+        }
+    }
+} catch (\Throwable $e) {
+    error_log('[njeremoto-usage] router api failed, falling back to radacct');
+}
+
+// Fallback: open radacct row (interim counters, up to 10m stale).
+
 try {
     $st = $db->prepare("SELECT username, acctstarttime, acctsessiontime, acctinputoctets, acctoutputoctets, acctupdatetime FROM radacct WHERE framedipaddress = :ip AND acctstoptime IS NULL ORDER BY acctstarttime DESC LIMIT 1");
     $st->execute([':ip' => $ip]);
@@ -55,7 +87,7 @@ try {
         'online_seconds' => max(0, $now - $start),
         'bytes_in' => (int)$row['acctinputoctets'],
         'bytes_out' => (int)$row['acctoutputoctets'],
-        'stale' => ($now - $upd) > 600,
+        'live' => false,
     ]]);
 } catch (\Throwable $e) {
     error_log('[njeremoto-usage] query failed');
