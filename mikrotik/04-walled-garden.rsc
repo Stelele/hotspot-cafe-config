@@ -11,6 +11,16 @@
 /ip hotspot walled-garden ip
 add action=accept dst-host=njeremoto.jh.erpnext.com comment="Frappe guest voucher portal pre-auth"
 
+# Block QUIC (UDP/443): the hotspot can only intercept TCP, so a browser trying
+# QUIC first gets a protocol error instead of the portal redirect
+# (ERR_QUIC_PROTOCOL_ERROR on random https URLs while logged out). Dropping it
+# forces immediate TCP fallback, where the portal flow triggers. Same pattern
+# as the DoT/DoH blocks below. Cost: hotspot clients use TCP/TLS instead of
+# HTTP/3 (negligible at 10M profiles). Applied live 2026-09-18 (rule order:
+# after per-device conn limit, before the 853 blocks).
+/ip firewall filter
+add chain=forward action=drop protocol=udp dst-port=443 src-address=192.168.88.0/24 comment="block QUIC so browsers fall back to TCP portal redirect"
+
 # Block DNS-over-HTTPS / DNS-over-TLS bypass: a client using DoH resolves
 # the portal to different edge IPs than the ones the walled-garden entry
 # allowed, breaking the portal before login. Clients must use the router DNS.
