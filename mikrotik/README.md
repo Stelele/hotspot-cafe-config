@@ -162,6 +162,15 @@ Rescue paths if locked out: WinBox via **MAC address** (Neighbors tab), or SSH h
   instead of redirecting — blocked subnet-wide in `04-walled-garden.rsc` so
   browsers fall back to TCP. Deterministic entry point for all cases:
   `https://status-radius.giftmugweni.com` (usage when online, login when not).
+- HTTPS navigations can never render the portal (no trusted router cert for
+  third-party names — that would be a TLS downgrade). HSTS-preloaded sites
+  (`google.com`, `bing.com`) and HSTS-learned URLs always fail closed; plain
+  http and OS join-time probes redirect fine.
+- Idle timeout is 30m (raised from 5m 2026-09-18: 5m expired sessions
+  mid-browse constantly, and expired users on https never reach the portal
+  to re-login). Compatible with 1h DHCP leases and 10m RADIUS interim.
+- Watch: router rebooted without proper shutdown on 2026-09-18 (power
+  suspected). If recurrent, investigate power/UPS before anything else.
 
 ## Failure modes
 

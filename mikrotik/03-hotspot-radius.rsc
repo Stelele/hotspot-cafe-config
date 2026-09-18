@@ -47,7 +47,7 @@
     radius-interim-update=00:10:00 login-by=http-chap,http-pap,cookie \
     html-directory=hotspot
 /ip hotspot add name=hotspot1 interface=bridge profile=hsprof1 \
-    address-pool=hs-pool-1 idle-timeout=5m
+    address-pool=hs-pool-1 idle-timeout=30m
 
 # ---- break-glass local user (works when tunnel is down; NOTE: local users
 #      do NOT generate RADIUS accounting - by design) -------------------------

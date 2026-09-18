@@ -87,6 +87,7 @@ input[type=submit] { width: 100%; padding: 12px; border: 0; border-radius: 8px;
       <input id="userGo" type="submit" value="Connect">
     </div>
   </form>
+  <p class="foot" id="rd-login-hint" style="display:none">Stuck on another site? Type <b>status-radius.giftmugweni.com</b></p>
   <p class="foot">Powered by <a href="https://bsmtechsolutions.co.zw/">Bsmitech Solutions</a></p>
 </div>
 
@@ -131,6 +132,7 @@ input[type=submit] { width: 100%; padding: 12px; border: 0; border-radius: 8px;
   function showLogin(reason) {
     document.getElementById('usage').classList.add('hidden');
     document.getElementById('login').classList.remove('hidden');
+    document.getElementById('rd-login-hint').style.display = 'block';
     sub.textContent = reason || 'Please log in to use the internet hotspot service';
   }
 
