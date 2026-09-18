@@ -4,14 +4,15 @@
 declare(strict_types=1);
 header('Content-Type: application/json');
 
-$allowedOrigin = 'https://radius.giftmugweni.com';
+$allowedOrigins = ['https://radius.giftmugweni.com', 'https://status-radius.giftmugweni.com'];
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 $referer = $_SERVER['HTTP_REFERER'] ?? '';
 // Browser top-level GET navigations send no Origin; allow same-host referer or empty.
-if ($origin !== '' && $origin !== $allowedOrigin) { http_response_code(403); echo json_encode(['ok' => false]); exit; }
-if ($origin === '' && $referer !== '' && !str_starts_with($referer, $allowedOrigin . '/')) {
-    http_response_code(403); echo json_encode(['ok' => false]); exit;
+$refOk = ($origin === '');
+foreach ($allowedOrigins as $a) {
+    if ($origin === $a || str_starts_with($referer, $a . '/')) { $refOk = true; break; }
 }
+if (!$refOk) { http_response_code(403); echo json_encode(['ok' => false]); exit; }
 
 $ip = urldecode((string)($_GET['ip'] ?? ''));
 if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) || !str_starts_with($ip, '192.168.88.')) {

@@ -14,12 +14,15 @@ function fail(string $public, int $code = 200, string $priv = ''): void {
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') { fail('Method not allowed.', 405); }
 
-// Same-origin only.
+// Same-origin only (both portal hosts).
+$allowedOrigins = ['https://radius.giftmugweni.com', 'https://status-radius.giftmugweni.com'];
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 $referer = $_SERVER['HTTP_REFERER'] ?? '';
-$allowedOrigin = 'https://radius.giftmugweni.com';
-$okOrigin = ($origin === $allowedOrigin) || ($origin === '' && str_starts_with($referer, $allowedOrigin . '/'));
-if (!$okOrigin) { fail('Forbidden.', 403, 'origin check failed'); }
+$refOk = false;
+foreach ($allowedOrigins as $a) {
+    if ($origin === $a || ($origin === '' && str_starts_with($referer, $a . '/'))) { $refOk = true; break; }
+}
+if (!$refOk) { fail('Forbidden.', 403, 'origin check failed'); }
 
 $in = json_decode(file_get_contents('php://input'), true);
 if (!is_array($in)) { fail('Bad request.', 400); }
