@@ -151,6 +151,18 @@ concurrent login rejected with *"Simultaneous connections limited to 1"*.
 
 Rescue paths if locked out: WinBox via **MAC address** (Neighbors tab), or SSH hop droplet → `admin@10.10.10.2` through the tunnel (droplet key `root@internet-cafe-server` is installed on the router).
 
+## Captive-portal redirect limits (verified 2026-09-18)
+
+- Plain-http sites (`neverssl.com`, `cnn.com`, `fb.com`) redirect to the login
+  page correctly; OS join-time probes (plain http) pop the portal as expected.
+- HSTS-preloaded sites (`google.com`, `bing.com`) can NEVER show the portal —
+  browsers pin their certificates and reject interception (cert warning at
+  best). This is inherent to every captive portal, not a misconfiguration.
+- QUIC (UDP/443) bypasses interception and fails with `ERR_QUIC_PROTOCOL_ERROR`
+  instead of redirecting — blocked subnet-wide in `04-walled-garden.rsc` so
+  browsers fall back to TCP. Deterministic entry point for all cases:
+  `https://status-radius.giftmugweni.com` (usage when online, login when not).
+
 ## Failure modes
 
 | Symptom | Cause | Look at |
