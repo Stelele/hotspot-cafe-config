@@ -36,6 +36,7 @@ between phases.
 | 2 | `02-wireguard.rsc` | tunnel | the **MikroTik WireGuard public key** |
 | 3 | `03-hotspot-radius.rsc` | after secret | nothing - run `:put` checklist |
 | 4 | portal upload + reboot | after 3 | New Arrivals appears in RADIUSDesk |
+| 5 | `05-external-login.rsc` + `hotspot-redirect/login.html` | HTTPS login (2026-09-17, live) | droplet login page shows lock icon |
 
 > **Plug into ether2-4 first.** WinBox management must come from the LAN side
 > (192.168.88.1) - after step 1 the router is a router, not a bridge, and the
@@ -163,8 +164,21 @@ Rescue paths if locked out: WinBox via **MAC address** (Neighbors tab), or SSH h
 
 ## Later upgrades
 
-RADIUSDesk **central login pages**: the hotspot profile already has
+~~RADIUSDesk **central login pages**: the hotspot profile already has
 `login-by=http-pap`, so you can switch to RADIUSDesk-managed pages later by
 replacing the router's static hotspot files with the redirect stub from
 RADIUSDesk's `rdcore` repo (`setup/mikrotik/`), adding a walled-garden IP
-entry for the droplet, and enabling HTTPS on the hotspot.
+entry for the droplet, and enabling HTTPS on the hotspot.~~
+
+**DONE 2026-09-17 — RADIUSDesk central login pages are LIVE.**
+`hotspot/login.html` on the router is now the redirect stub
+(`mikrotik/hotspot-redirect/login.html`, POSTs to
+`https://radius.giftmugweni.com/cake4/rd_cake/dynamic-details/mikrotik-browser-detect`);
+pre-auth walled-garden entries for the droplet live in `05-external-login.rsc`.
+RADIUSDesk: Dynamic Detail "Njeremoto" (id 21, realm 20, Default theme) +
+pair `nasid=njeremoto-cafe-01` (id 34). The previous Njeremoto-branded
+`login.html` is kept in `mikrotik/hotspot/` as the rollback image (live backup
+in `/tmp/opencode/hotspot-backup/` on the build machine — re-upload it to roll back).
+Note: `radius.giftmugweni.com` is Cloudflare-proxied (resolves to 104.21.2.189 /
+172.67.129.145, not the droplet IP) — the `dst-host` garden entry is the one
+that matters pre-auth.
